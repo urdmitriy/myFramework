@@ -2,8 +2,8 @@
 // Created by urdmi on 02.06.2024.
 //
 
-#ifndef TEST_CONSONE_APP_LIST_H
-#define TEST_CONSONE_APP_LIST_H
+#ifndef LIST_H
+#define LIST_H
 
 typedef struct list__item_t {
     struct list__item_t* prev_list;
@@ -17,4 +17,4 @@ typedef enum {
 
 void* list__init(void* list);
 void* list__add_item(void* list_item, void* new_item, list__order_e order);
-#endif //TEST_CONSONE_APP_LIST_H
+#endif //LIST_H
