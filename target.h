@@ -9,6 +9,4 @@
 #define TIMER_USE
 #define GPIO_USE
 
-#define DEBUG
-
 #endif //STM32L4CMSIS_TARGET_H
