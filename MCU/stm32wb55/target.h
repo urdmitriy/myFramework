@@ -8,5 +8,6 @@
 #define SUPERVISOR_USE
 #define TIMER_USE
 #define GPIO_USE
+#define UART_USE
 
 #endif //STM32L4CMSIS_TARGET_H

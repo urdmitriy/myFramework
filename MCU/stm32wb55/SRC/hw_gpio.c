@@ -12,7 +12,7 @@ void hw_gpio__init(void){
 }
 
 static GPIO_TypeDef* hw_gpio__port_get(uint32_t port_pin) {
-    uint8_t port = port_pin & 0x03;
+    uint8_t port = port_pin & 0x07;
     GPIO_TypeDef *gpio_port;
 
     switch (port) {
@@ -25,13 +25,19 @@ static GPIO_TypeDef* hw_gpio__port_get(uint32_t port_pin) {
         case MCU__GPIO_PORT_C:
             gpio_port = GPIOC;
             break;
+		case MCU__GPIO_PORT_D:
+            gpio_port = GPIOD;
+            break;
+		case MCU__GPIO_PORT_E:
+            gpio_port = GPIOE;
+            break;
     }
     return gpio_port;
 }
 
 void hw_gpio__pin_init(uint32_t port_pin, hw_gpio__settings_t* settings) {
 
-    uint8_t pin = (port_pin >> 2) & 0x03;
+    uint8_t pin = (port_pin >> 3) & 0x0F;
 
     GPIO_TypeDef* gpio_port = hw_gpio__port_get(port_pin);
 
@@ -44,6 +50,12 @@ void hw_gpio__pin_init(uint32_t port_pin, hw_gpio__settings_t* settings) {
             break;
         case (uint32_t)GPIOC:
             RCC->AHB2ENR |= RCC_AHB2ENR_GPIOCEN;
+            break;
+		case (uint32_t)GPIOD:
+            RCC->AHB2ENR |= RCC_AHB2ENR_GPIODEN;
+            break;
+		case (uint32_t)GPIOE:
+            RCC->AHB2ENR |= RCC_AHB2ENR_GPIOEEN;
             break;
     }
 
@@ -84,7 +96,7 @@ void hw_gpio__pin_init(uint32_t port_pin, hw_gpio__settings_t* settings) {
 
 void hw_gpio__pin_state_set(uint32_t port_pin, hw__gpio_state_e state) {
 
-    uint8_t pin = (port_pin >> 2) & 0x03;
+    uint8_t pin = (port_pin >> 3) & 0x0F;
     GPIO_TypeDef* gpio_port = hw_gpio__port_get(port_pin);
 
     if (state == HW_GPIO__STATE_HIGH) {
@@ -96,7 +108,7 @@ void hw_gpio__pin_state_set(uint32_t port_pin, hw__gpio_state_e state) {
 
 hw__gpio_state_e hw_gpio__pin_state_get(uint32_t port_pin){
 
-    uint8_t pin = (port_pin >> 2) & 0x03;
+    uint8_t pin = (port_pin >> 3) & 0x0F;
     GPIO_TypeDef* gpio_port = hw_gpio__port_get(port_pin);
 
     uint32_t result = gpio_port->IDR & (1<<pin);

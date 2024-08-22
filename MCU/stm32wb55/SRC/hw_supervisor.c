@@ -4,7 +4,6 @@
 
 #include "hw_supervisor.h"
 #include "stm32wb55xx.h"
-#include "target.h"
 
 typedef enum {
     hw_supervisor_speed_low,
@@ -39,7 +38,7 @@ static void hw_supervisor__sys_clock_setting(hw_supervisor_speed_t speed) {
 //    Change the desired parameter.
 
     RCC->PLLCFGR &= ~(3 << RCC_PLLCFGR_PLLSRC_Pos);
-    RCC->PLLCFGR |= (3 << RCC_PLLCFGR_PLLSRC_Pos); //00: No clock sent to PLL PLLSAI1, 01: MSI clock selected as PLL PLLSAI1 clock entry, 10: HSI16 clock selected as PLL PLLSAI1 clock entry, 11: HSE clock selected as PLL PLLSAI1 clock entry
+    RCC->PLLCFGR |= ((RCC_PLLCFGR_PLLSRC_1) << RCC_PLLCFGR_PLLSRC_Pos); //00: No clock sent to PLL PLLSAI1, 01: MSI clock selected as PLL PLLSAI1 clock entry, 10: HSI16 clock selected as PLL PLLSAI1 clock entry, 11: HSE clock selected as PLL PLLSAI1 clock entry
 
     RCC->PLLCFGR &= ~(RCC_PLLCFGR_PLLN_0|RCC_PLLCFGR_PLLN_1|RCC_PLLCFGR_PLLN_2|RCC_PLLCFGR_PLLN_3|
             RCC_PLLCFGR_PLLN_4|RCC_PLLCFGR_PLLN_5|RCC_PLLCFGR_PLLN_6); //Main PLL multiplication factor for VCO
@@ -50,12 +49,12 @@ static void hw_supervisor__sys_clock_setting(hw_supervisor_speed_t speed) {
         RCC->PLLCFGR &= ~RCC_PLLCFGR_PLLM_1; //000: PLLM = 1, 001: PLLM = 2, 010: PLLM = 3, 011: PLLM = 4
         RCC->PLLCFGR &= ~RCC_PLLCFGR_PLLM_2; //100: PLLM = 5, 101: PLLM = 6, 110: PLLM = 7, 111: PLLM = 8
 
-        RCC->PLLCFGR |= 10 << RCC_PLLCFGR_PLLN_Pos;
+        RCC->PLLCFGR |= 8 << RCC_PLLCFGR_PLLN_Pos;
 
         RCC->PLLCFGR &= ~RCC_PLLCFGR_PLLR_0; //00: PLLR = 2, 01: PLLR = 4, 10: PLLR = 6, 11: PLLR = 8
         RCC->PLLCFGR &= ~RCC_PLLCFGR_PLLR_1;
 
-        current_freq = 80000000;
+        current_freq = 64000000;
     } else if (speed == hw_supervisor_speed_low) {
         RCC->PLLCFGR &= ~RCC_PLLCFGR_PLLM_0; //Division factor for the main PLL and audio PLL (PLLSAI1) input clock
         RCC->PLLCFGR &= ~RCC_PLLCFGR_PLLM_1; //000: PLLM = 1, 001: PLLM = 2, 010: PLLM = 3, 011: PLLM = 4
