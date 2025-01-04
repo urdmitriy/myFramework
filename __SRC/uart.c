@@ -2,20 +2,23 @@
 // Created by urdmi on 20.08.2024.
 //
 
+#include <stdio.h>
 #include "mcu.h"
 #include "uart.h"
 #include "hw_uart.h"
 #include "list.h"
 #include "inttypes.h"
+#include "device.h"
+#include "timer.h"
 
 #define SIZE_BUF 256
+#define TIME_IDLE_MS 2
+
 typedef enum {
     UART__FSM_STATE_IDLE,
     UART__FSM_STATE_OPEN,
     UART__FSM_STATE_WAIT_OPEN,
-    UART__FSM_STATE_READY,
-    UART__FSM_STATE_TX_DATA,
-    UART__FSM_STATE_TX_DATA_WAIT_COMPLETE,
+    UART__FSM_STATE_WORK,
 }uart_fsm_state_e;
 
 typedef struct {
@@ -28,17 +31,24 @@ typedef struct {
     struct {
         char data[SIZE_BUF];
         uint16_t data_count;
-        uint16_t current_rx;
+        uint32_t len;
+        uint32_t timeout;
+        uint32_t time_idle;
+        uint64_t time_last_byte;
         uart__call_back_t cb;
     }rx;
+    struct {
+        uint8_t rx_data:1;
+        uint8_t tx_data:1;
+        uint8_t tx_wait_data_send:1;
+    } flags;
     uart_fsm_state_e uart_fsm_state;
 } uart__data_t;
 
 static void uart__cout(void);
 static void uart__event_handler(uint8_t uart_id, hw_uart__event_e event);
-void uart__cb(uint8_t uart_id, uart__event_e event);
 
-volatile static uart__data_t uart__data[MCU__USART_COUNT];
+static uart__data_t uart__data[MCU__USART_COUNT];
 
 void uart__init(list__item_t* list_head){
     for (int i = 0; i < MCU__USART_COUNT; ++i) {
@@ -50,33 +60,61 @@ void uart__init(list__item_t* list_head){
 
 }
 
-static void uart__cout(void){
-    for (int i = 0; i < MCU__USART_COUNT; ++i) {
+static void uart__cout(void) {
+    for (int i = MCU__USART_1; i < MCU__USART_COUNT; ++i) {
         switch (uart__data[i].uart_fsm_state) {
             case UART__FSM_STATE_IDLE:
                 break;
 
             case UART__FSM_STATE_OPEN:
                 uart__data[i].uart_fsm_state = UART__FSM_STATE_WAIT_OPEN;
-                hw_uart__open(i, uart__event_handler);
+                hw_uart__open(i, 115200, uart__event_handler);
                 break;
 
             case UART__FSM_STATE_WAIT_OPEN:
-            case UART__FSM_STATE_READY:
                 break;
 
-            case UART__FSM_STATE_TX_DATA:
-                if (uart__data[i].tx.data[uart__data[i].tx.current_tx] != '\0' && uart__data[i].tx.current_tx < SIZE_BUF) {
-                    uart__data[i].uart_fsm_state = UART__FSM_STATE_TX_DATA_WAIT_COMPLETE;
-                    hw_uart__tx(i, uart__data[i].tx.data[uart__data[i].tx.current_tx], uart__event_handler);
-                    uart__data[i].tx.current_tx++;
-                } else {
-                    uart__data[i].uart_fsm_state = UART__FSM_STATE_READY;
-                    uart__data[i].tx.cb(i, UART__EVENT_DATA_TX_COMPLETE);
-                    uart__data[i].tx.current_tx = 0;
+            case UART__FSM_STATE_WORK:
+                //если есть чего принять
+                if (uart__data[i].flags.rx_data || uart__data[i].rx.data_count != 0) {
+
+                    uint64_t cur_time = timer__systick_get();
+
+                    if (uart__data[i].flags.rx_data){
+                        uart__data[i].rx.data[uart__data[i].rx.data_count] = hw_uart__rx(i);
+                        uart__data[i].rx.data_count ++;
+                        uart__data[i].flags.rx_data = 0;
+                        uart__data[i].rx.time_last_byte = cur_time;
+                    }
+
+                    if ((uart__data[i].rx.time_idle != 0 && (cur_time - uart__data[i].rx.time_last_byte) >= uart__data[i].rx.time_idle) && uart__data[i].rx.data_count > 0) { //если задержка
+                        uart__data[i].rx.cb(i, UART__EVENT_DATA_RX_COMPLETE, uart__data[i].rx.data, uart__data[i].rx.data_count);
+                    } else if (uart__data[i].rx.len != 0 && uart__data[i].rx.data_count >= uart__data[i].rx.len) { //если n байт уже получено
+                        uart__data[i].rx.cb(i, UART__EVENT_DATA_RX_COMPLETE, uart__data[i].rx.data, uart__data[i].rx.data_count);
+                    } else if (uart__data[i].rx.timeout != 0 && uart__data[i].rx.timeout >= timer__systick_get()) { //если время истекло
+                        uart__data[i].rx.cb(i, UART__EVENT_DATA_RX_COMPLETE, uart__data[i].rx.data, uart__data[i].rx.data_count);
+                    } else {
+                        hw_uart__rx_irq_en(i);
+                    }
+
+                }
+
+                //если есть чего отправить
+                if (uart__data[i].flags.tx_data && uart__data[i].flags.tx_wait_data_send == 0) {
+
+                    if (uart__data[i].tx.data[uart__data[i].tx.current_tx] != '\0' &&
+                        uart__data[i].tx.current_tx < SIZE_BUF) {
+                        uart__data[i].flags.tx_wait_data_send = 1;
+                        hw_uart__tx(i, uart__data[i].tx.data[uart__data[i].tx.current_tx]);
+                        uart__data[i].tx.current_tx++;
+                    } else {
+                        uart__data[i].tx.current_tx = 0;
+                        uart__data[i].flags.tx_data = 0;
+                        uart__data[i].tx.cb(i, UART__EVENT_DATA_TX_COMPLETE, uart__data[i].tx.data, uart__data[i].tx.data_count);
+                    }
                 }
                 break;
-            case UART__FSM_STATE_TX_DATA_WAIT_COMPLETE:
+            default:
                 break;
         }
     }
@@ -85,15 +123,20 @@ static void uart__cout(void){
 static void uart__event_handler(uint8_t uart_id, hw_uart__event_e event) {
     switch (event) {
         case HW_UART__EVENT_OPEN:
-            uart__data[uart_id].uart_fsm_state = UART__FSM_STATE_READY;
-            uart__tx(uart_id, "Open port success\n\r", uart__cb);
+            uart__data[uart_id].uart_fsm_state = UART__FSM_STATE_WORK;
             break;
 
         case HW_UART__EVENT_DATA_TX_COMPLETE:
-            uart__data[uart_id].uart_fsm_state = UART__FSM_STATE_TX_DATA;
+            uart__data[uart_id].flags.tx_wait_data_send = 0;
             break;
+
+        case HW_UART__EVENT_DATA_RX:
+            uart__data[uart_id].flags.rx_data = 1;
+            break;
+
     }
 }
+
 void uart__open(uint8_t uart_id) {
     if (uart__data[uart_id].uart_fsm_state == UART__FSM_STATE_IDLE) {
         uart__data[uart_id].uart_fsm_state = UART__FSM_STATE_OPEN;
@@ -101,17 +144,39 @@ void uart__open(uint8_t uart_id) {
 }
 
 void uart__tx(uint8_t uart_id, char* data, uart__call_back_t uart_cb){
-    if (uart__data[uart_id].uart_fsm_state != UART__FSM_STATE_READY) return;
+    if (uart__data[uart_id].uart_fsm_state != UART__FSM_STATE_WORK) return;
+    uart__data[uart_id].flags.tx_data = 1;
     uart__data[uart_id].tx.cb = uart_cb;
     uart__data[uart_id].tx.data_count = 0;
+    //копируем данные в буфер
     while (uart__data[uart_id].tx.data_count < SIZE_BUF && *(data + uart__data[uart_id].tx.data_count) != '\0'){
         uart__data[uart_id].tx.data[uart__data[uart_id].tx.data_count] = *(data + uart__data[uart_id].tx.data_count);
         uart__data[uart_id].tx.data_count++;
     }
+    //добавляем конец строки
     uart__data[uart_id].tx.data[uart__data[uart_id].tx.data_count] = '\0';
-    uart__data[uart_id].uart_fsm_state = UART__FSM_STATE_TX_DATA;
+    hw_uart__tx_irq_en(uart_id);
 }
 
-void uart__cb(uint8_t uart_id, uart__event_e event){
-    return;
+void uart__rx(uint8_t uart_id, char* data, uint32_t timeout_ms, uint32_t time_idle_ms, uint32_t len, uart__call_back_t uart_cb){
+    if (uart__data[uart_id].uart_fsm_state != UART__FSM_STATE_WORK) return;
+
+    if (timeout_ms != 0)
+        uart__data[uart_id].rx.timeout = timer__systick_get() + timeout_ms;
+    else
+        uart__data[uart_id].rx.timeout = 0;
+
+    if (len != 0)
+        uart__data[uart_id].rx.len = len;
+    else
+        uart__data[uart_id].rx.len = 0;
+
+    if (time_idle_ms != 0)
+        uart__data[uart_id].rx.time_idle = time_idle_ms;
+    else
+        uart__data[uart_id].rx.time_idle = 0;
+
+    uart__data[uart_id].rx.cb = uart_cb;
+    uart__data[uart_id].rx.data_count = 0;
+    hw_uart__rx_irq_en(uart_id);
 }

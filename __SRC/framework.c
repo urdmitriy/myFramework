@@ -28,14 +28,17 @@ void framework__init(void) {
     uart__init(&list_app);
 #endif
     __enable_irq();
-    NVIC_EnableIRQ(HardFault_IRQn);
+    NVIC_EnableIRQ( -13);
 }
 
 void framework__app(void) {
     list__item_t* cur_app = &list_app;
     do {
         cur_app = cur_app->next_list;
-        if (cur_app->app != 0)
-            cur_app->app();
+        if (cur_app->item_ptr != 0) {
+            app_cout cur_cout = (app_cout)cur_app->item_ptr;
+            cur_cout();
+        }
+
     } while (cur_app->next_list != cur_app);
 }
