@@ -34,5 +34,6 @@
 #define DEVICE_USART_LOG_TX     MCU__PORT_A_PIN_9
 
 void device__gpio_init(void);
+void device__relay_switch();
 
 #endif //DEVICE_H

@@ -30,7 +30,7 @@ void framework__init(void) {
     uart__init(&list_app);
 #endif
 #if defined(LOG_USE)  && defined(DEVICE_USART_LOG)
-    log__init(DEVICE_USART_LOG);
+    log__init(DEVICE_USART_LOG, &list_app);
 #endif
     __enable_irq();
     NVIC_EnableIRQ( -13);

@@ -176,3 +176,7 @@ void uart__rx(uint8_t uart_id, char* data, uint32_t timeout_ms, uint32_t time_id
     uart__data[uart_id].rx.data_count = 0;
     hw_uart__rx_irq_en(uart_id);
 }
+
+uint8_t uart__is_busy(uint8_t uart_id) {
+    return uart__data[uart_id].flags.tx_data ;
+}

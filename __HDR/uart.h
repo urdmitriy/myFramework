@@ -19,5 +19,6 @@ void uart__init(list__item_t* list_head);
 void uart__open(uint8_t uart_id);
 void uart__tx(uint8_t uart_id, char* data, uart__call_back_t uart_cb);
 void uart__rx(uint8_t uart_id, char* data, uint32_t timeout_ms, uint32_t time_idle_ms, uint32_t len, uart__call_back_t uart_cb);
+uint8_t uart__is_busy(uint8_t uart_id);
 
 #endif //UART_H
