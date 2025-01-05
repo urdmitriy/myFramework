@@ -8,8 +8,10 @@
 #include "mcu.h"
 #include "inttypes.h"
 
-#define PIN_SWD MCU__PORT_A_PIN_13
-#define PIN_SWO MCU__PORT_A_PIN_14
+#define HSE_MHZ 25
+#define HSI_MHZ 16
+#define FREQ_MCU_HI_MHZ 84
+#define FREQ_MCU_LO_MHZ 4
 
 #define DEVICE_PWR_WIFI         MCU__PORT_B_PIN_9
 #define DEVICE_PWR_GSM          MCU__PORT_B_PIN_8
@@ -28,8 +30,8 @@
 #define DEVICE_USART_WIFI_TX    MCU__PORT_A_PIN_2
 #define DEVICE_USART_WIFI_RX    MCU__PORT_A_PIN_3
 
-#define DEVICE_USART_DEBUG      MCU__USART_1
-#define DEVICE_USART_DEBUG_TX   MCU__PORT_A_PIN_9
+#define DEVICE_USART_LOG        MCU__USART_1
+#define DEVICE_USART_LOG_TX     MCU__PORT_A_PIN_9
 
 void device__gpio_init(void);
 

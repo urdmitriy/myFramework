@@ -28,9 +28,14 @@ static void hw_supervisor__sys_clock_setting(hw_supervisor_speed_t speed) {
 
     RCC->CR &= RCC_CR_PLLON; //Disable the PLL by setting PLLON to 0
     while (RCC->CR & RCC_CR_PLLRDY); //Wait until PLLRDY is cleared. The PLL is now fully stopped.
-	
-	RCC->CR |= RCC_CR_HSION;
+
+#if defined(HSE_MHZ)
+	RCC->CR |= RCC_CR_HSEON;
+    while ((RCC->CR & RCC_CR_HSERDY) == 0); //1: HSI oscillator ready
+#else
+    RCC->CR |= RCC_CR_HSION;
     while ((RCC->CR & RCC_CR_HSIRDY) == 0); //1: HSI oscillator ready
+#endif
 
     FLASH->ACR &= ~FLASH_ACR_PRFTEN;
     FLASH->ACR |= FLASH_ACR_PRFTEN;
@@ -39,8 +44,11 @@ static void hw_supervisor__sys_clock_setting(hw_supervisor_speed_t speed) {
 
 //    Change the desired parameter.
 
-    RCC->PLLCFGR &= ~(3 << RCC_PLLCFGR_PLLSRC_Pos);
-    RCC->PLLCFGR |= ((RCC_PLLCFGR_PLLSRC) << RCC_PLLCFGR_PLLSRC_Pos); //00: No clock sent to PLL PLLSAI1, 01: MSI clock selected as PLL PLLSAI1 clock entry, 10: HSI16 clock selected as PLL PLLSAI1 clock entry, 11: HSE clock selected as PLL PLLSAI1 clock entry
+#if defined(HSE_MHZ)
+    RCC->PLLCFGR |= RCC_PLLCFGR_PLLSRC; //0: HSI clock selected as PLL and PLLI2S clock entry; 1: HSE oscillator clock selected as PLL and PLLI2S clock entry
+#else
+    RCC->PLLCFGR &= ~RCC_PLLCFGR_PLLSRC; //0: HSI clock selected as PLL and PLLI2S clock entry; 1: HSE oscillator clock selected as PLL and PLLI2S clock entry
+#endif
 
     RCC->PLLCFGR &= ~(RCC_PLLCFGR_PLLN_0|RCC_PLLCFGR_PLLN_1|RCC_PLLCFGR_PLLN_2|RCC_PLLCFGR_PLLN_3|
             RCC_PLLCFGR_PLLN_4|RCC_PLLCFGR_PLLN_5|RCC_PLLCFGR_PLLN_6|RCC_PLLCFGR_PLLN_7|RCC_PLLCFGR_PLLN_8); //Main PLL multiplication factor for VCO
@@ -52,15 +60,27 @@ static void hw_supervisor__sys_clock_setting(hw_supervisor_speed_t speed) {
     //Division factor for the main PLL and audio PLL (PLLSAI1) input clock
     //00: PLLP = 2; 01: PLLP = 4; 10: PLLP = 6; 11: PLLP = 8
 
+#if defined(HSE_MHZ)
     if (speed == hw_supervisor_speed_high) {
-        RCC->PLLCFGR |= 8 << RCC_PLLCFGR_PLLM_Pos; //Main PLL (PLL) division factor for main system clock
-        RCC->PLLCFGR |= 84 << RCC_PLLCFGR_PLLN_Pos;
-        current_freq = 84000000;
+        RCC->PLLCFGR |= HSE_MHZ << RCC_PLLCFGR_PLLM_Pos; //Main PLL (PLL) division factor for main system clock
+        RCC->PLLCFGR |= (FREQ_MCU_HI_MHZ * 2) << RCC_PLLCFGR_PLLN_Pos;
+        current_freq = FREQ_MCU_HI_MHZ * 1000000;
     } else if (speed == hw_supervisor_speed_low) {
-        RCC->PLLCFGR |= 8 << RCC_PLLCFGR_PLLM_Pos; //Main PLL (PLL) division factor for main system clock
-        RCC->PLLCFGR |= 4 << RCC_PLLCFGR_PLLN_Pos;
-        current_freq = 4000000;
+        RCC->PLLCFGR |= HSE_MHZ << RCC_PLLCFGR_PLLM_Pos; //Main PLL (PLL) division factor for main system clock
+        RCC->PLLCFGR |= (FREQ_MCU_LO_MHZ * 2) << RCC_PLLCFGR_PLLN_Pos;
+        current_freq = FREQ_MCU_LO_MHZ * 1000000;
     }
+#else
+        if (speed == hw_supervisor_speed_high) {
+        RCC->PLLCFGR |= (HSI_MHZ / 2) << RCC_PLLCFGR_PLLM_Pos; //Main PLL (PLL) division factor for main system clock
+        RCC->PLLCFGR |= (FREQ_MCU_HI_MHZ) << RCC_PLLCFGR_PLLN_Pos;
+        current_freq = FREQ_MCU_HI_MHZ * 1000000;
+    } else if (speed == hw_supervisor_speed_low) {
+        RCC->PLLCFGR |= HSI_MHZ << RCC_PLLCFGR_PLLM_Pos; //Main PLL (PLL) division factor for main system clock
+        RCC->PLLCFGR |= (FREQ_MCU_LO_MHZ * 2) << RCC_PLLCFGR_PLLN_Pos;
+        current_freq = FREQ_MCU_LO_MHZ * 1000000;
+    }
+#endif
 
     RCC->CR |= RCC_CR_PLLON; //Enable the PLL again by setting PLLON to 1.
     while ((RCC->CR & RCC_CR_PLLRDY) == 0);
@@ -77,9 +97,14 @@ static void hw_supervisor__sys_clock_setting(hw_supervisor_speed_t speed) {
     RCC->CFGR &= ~RCC_CFGR_PPRE2_0; //APB high-speed prescaler (APB2)
     RCC->CFGR &= ~RCC_CFGR_PPRE2_1; //0xx: HCLK not divided, 100: HCLK divided by 2, 101: HCLK divided by 4, 110: HCLK divided by 8, 111: HCLK divided by 16
     RCC->CFGR &= ~RCC_CFGR_PPRE2_2;
-	
+
+#if defined(HSE_MHZ)
     RCC->CFGR &= ~RCC_CFGR_SW_0; //System clock switch
     RCC->CFGR |= RCC_CFGR_SW_1; //00: HSI oscillator selected as system clock, 01: HSE oscillator selected as system clock, 10: PLL selected as system clock
+#else
+    RCC->CFGR &= ~RCC_CFGR_SW_0; //System clock switch
+    RCC->CFGR &= ~RCC_CFGR_SW_1; //00: HSI oscillator selected as system clock, 01: HSE oscillator selected as system clock, 10: PLL selected as system clock
+#endif
 }
 
 static void hw_supervisor__iwgd_init(void) {

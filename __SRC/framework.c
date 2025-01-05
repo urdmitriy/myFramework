@@ -2,12 +2,14 @@
 // Created by urdmi on 20.08.2024.
 //
 
+#include "device.h"
 #include "framework.h"
 #include "list.h"
 #include "supervisor.h"
 #include "timer.h"
 #include "gpio.h"
 #include "uart.h"
+#include "log.h"
 #include "target.h"
 #include "mcu.h"
 
@@ -26,6 +28,9 @@ void framework__init(void) {
 #endif
 #ifdef UART_USE
     uart__init(&list_app);
+#endif
+#if defined(LOG_USE)  && defined(DEVICE_USART_LOG)
+    log__init(DEVICE_USART_LOG);
 #endif
     __enable_irq();
     NVIC_EnableIRQ( -13);

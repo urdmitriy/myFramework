@@ -25,6 +25,4 @@ void device__gpio_init(void){
     pin_setting.mode = HW_GPIO__MODE_INPUT;
     pin_setting.pull = HW_GPIO__PULL_UP;
     gpio__pin_init(DEVICE_PIN_SETUP, &pin_setting);
-
-    gpio__pin_state_set(DEVICE_PWR_GSM, HW_GPIO__STATE_HIGH);
 }

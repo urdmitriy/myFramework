@@ -53,11 +53,8 @@ static uart__data_t uart__data[MCU__USART_COUNT];
 void uart__init(list__item_t* list_head){
     for (int i = 0; i < MCU__USART_COUNT; ++i) {
         hw_uart__init(i);
-        uart__open(i);
     }
-
     list__include(list_head, uart__cout);
-
 }
 
 static void uart__cout(void) {
@@ -96,12 +93,10 @@ static void uart__cout(void) {
                     } else {
                         hw_uart__rx_irq_en(i);
                     }
-
                 }
 
                 //если есть чего отправить
                 if (uart__data[i].flags.tx_data && uart__data[i].flags.tx_wait_data_send == 0) {
-
                     if (uart__data[i].tx.data[uart__data[i].tx.current_tx] != '\0' &&
                         uart__data[i].tx.current_tx < SIZE_BUF) {
                         uart__data[i].flags.tx_wait_data_send = 1;
@@ -110,7 +105,8 @@ static void uart__cout(void) {
                     } else {
                         uart__data[i].tx.current_tx = 0;
                         uart__data[i].flags.tx_data = 0;
-                        uart__data[i].tx.cb(i, UART__EVENT_DATA_TX_COMPLETE, uart__data[i].tx.data, uart__data[i].tx.data_count);
+                        if (uart__data[i].tx.cb != 0)
+                            uart__data[i].tx.cb(i, UART__EVENT_DATA_TX_COMPLETE, uart__data[i].tx.data, uart__data[i].tx.data_count);
                     }
                 }
                 break;

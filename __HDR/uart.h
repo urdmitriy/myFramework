@@ -2,8 +2,8 @@
 // Created by urdmi on 20.08.2024.
 //
 
-#ifndef STM32WB55_TEST_UART_H
-#define STM32WB55_TEST_UART_H
+#ifndef UART_H
+#define UART_H
 
 #include "list.h"
 #include "inttypes.h"
@@ -20,4 +20,4 @@ void uart__open(uint8_t uart_id);
 void uart__tx(uint8_t uart_id, char* data, uart__call_back_t uart_cb);
 void uart__rx(uint8_t uart_id, char* data, uint32_t timeout_ms, uint32_t time_idle_ms, uint32_t len, uart__call_back_t uart_cb);
 
-#endif //STM32WB55_TEST_UART_H
+#endif //UART_H

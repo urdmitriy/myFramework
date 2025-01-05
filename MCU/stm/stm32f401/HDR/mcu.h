@@ -103,8 +103,8 @@
 #define MCU__PORT_E_PIN_4 ((MCU__GPIO_PORT_E) | ((MCU__GPIO_PIN_4) << 3))
 
 #define MCU__USART_1        (0x00)
-#define MCU__USART_2        (0x00)
-#define MCU__USART_6        (0x00)
+#define MCU__USART_2        (0x01)
+#define MCU__USART_6        (0x02)
 #define MCU__USART_COUNT    3
 
 #endif //MCU_H
