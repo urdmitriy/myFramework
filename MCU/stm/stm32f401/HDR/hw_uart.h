@@ -20,7 +20,7 @@ void hw_uart__init(uint8_t uart_id);
 void hw_uart__open(uint8_t uart_id, uint32_t baudrate, hw_uart__event_handler_t event_handler);
 void hw_uart__tx_irq_en(uint8_t uart_id);
 void hw_uart__rx_irq_en(uint8_t uart_id);
-void hw_uart__tx(uint8_t uart_id, char data);
+uint8_t hw_uart__tx(uint8_t uart_id, char data);
 char hw_uart__rx(uint8_t uart_id);
 
 #endif //STM32WB55_TEST_HW_UART_H

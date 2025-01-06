@@ -9,6 +9,7 @@
 #include "inttypes.h"
 
 typedef enum {
+    TIMER__MODE_STOP,
     TIMER__MODE_ONE_PULSE,
     TIMER__MODE_CONTINUE_PULSE,
 } timer__mode_e;

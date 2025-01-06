@@ -16,6 +16,8 @@ void timer__init(list__item_t* list_head){
 }
 
 static void timer__cout(void) {
+//    fignya!;
+    if (&list_timer == list_timer.next_list) return; //если список пустой - выходим
     list__item_t* cur_item_list_timer = &list_timer;
     do {
         cur_item_list_timer = cur_item_list_timer->next_list;

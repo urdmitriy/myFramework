@@ -4,36 +4,48 @@
 
 #include "device.h"
 #include "framework.h"
-#include "list.h"
 #include "supervisor.h"
 #include "timer.h"
-#include "gpio.h"
 #include "uart.h"
 #include "log.h"
 #include "target.h"
-#include "mcu.h"
+#include "gsm.h"
 
 static list__item_t list_app;
 
 void framework__init(void) {
     list__init(&list_app);
+
 #ifdef SUPERVISOR_USE
     supervisor__init(&list_app);
 #endif
+
 #ifdef TIMER_USE
     timer__init(&list_app);
 #endif
+
 #ifdef GPIO_USE
     gpio__init(&list_app);
 #endif
+
 #ifdef UART_USE
     uart__init(&list_app);
 #endif
-#if defined(LOG_USE)  && defined(DEVICE_USART_LOG)
-    log__init(DEVICE_USART_LOG, &list_app);
-#endif
     __enable_irq();
-    NVIC_EnableIRQ( -13);
+#if defined(LOG_USE)
+    #ifndef DEVICE_USART_LOG
+    #error "Not defined DEVICE_USART_LOG"
+    #endif
+    log__init(DEVICE_USART_LOG, &list_app);
+    log__print("Device start\n\r");
+#endif
+
+#ifdef SIM800_USE
+    #ifndef DEVICE_USART_GSM
+    #error "Not defined DEVICE_USART_GSM"
+    #endif
+    gsm__init(DEVICE_USART_GSM, &list_app);
+#endif
 }
 
 void framework__app(void) {

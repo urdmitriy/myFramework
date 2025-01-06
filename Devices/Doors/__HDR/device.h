@@ -7,6 +7,7 @@
 
 #include "mcu.h"
 #include "inttypes.h"
+#include "gpio.h"
 
 #define HSE_MHZ 25
 #define HSI_MHZ 16
@@ -34,6 +35,7 @@
 #define DEVICE_USART_LOG_TX     MCU__PORT_A_PIN_9
 
 void device__gpio_init(void);
-void device__relay_switch();
+void device__relay_switch(void);
+void device__switch_power_gsm(uint8_t state);
 
 #endif //DEVICE_H

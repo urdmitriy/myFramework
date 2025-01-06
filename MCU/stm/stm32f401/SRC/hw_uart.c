@@ -74,10 +74,11 @@ void hw_uart__rx_irq_en(uint8_t uart_id){
     usart->CR1 |= USART_CR1_RXNEIE;
 }
 
-void hw_uart__tx(uint8_t uart_id, volatile char data){
+uint8_t hw_uart__tx(uint8_t uart_id, char data){
     USART_TypeDef* usart = hw_usart__itf_get(uart_id);
-    usart->CR1 |= USART_CR1_TXEIE;
-    usart->DR = data;
+        usart->CR1 |= USART_CR1_TXEIE;
+        usart->DR = data;
+        return 1;
 }
 
 char hw_uart__rx(uint8_t uart_id){
@@ -99,6 +100,7 @@ void USART6_IRQHandler(void) {
 
 void USART_IRQHandler(USART_TypeDef* usart) {
     if (usart->SR & USART_SR_TC) {
+        usart->SR &= ~USART_SR_TC;
         usart->CR1 &= ~(USART_CR1_TCIE);
     }
 

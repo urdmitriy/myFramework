@@ -10,5 +10,6 @@
 #define GPIO_USE
 #define UART_USE
 #define LOG_USE
+#define SIM800_USE
 
 #endif //TARGET_H

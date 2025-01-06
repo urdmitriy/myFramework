@@ -3,7 +3,7 @@
 //
 
 #include "device.h"
-#include "gpio.h"
+
 #include "timer.h"
 #include "log.h"
 
@@ -41,4 +41,9 @@ void device__relay_switch(){
     gpio__pin_state_set(DEVICE_PIN_RELAY, HW_GPIO__STATE_HIGH);
     log__print("Relay switch!\n\r");
     timer__start(&timer_relay_delay, TIME_RELAY_ON_DELAY, TIMER__MODE_ONE_PULSE, timer_relay_on_cb);
+}
+
+void device__switch_power_gsm(uint8_t state){
+    gpio__pin_state_set(DEVICE_PWR_GSM, state);
+    log__print(state == 1 ? "GSM power ON\n\r" : "GSM power OFF\n\r");
 }

@@ -3,18 +3,11 @@
 //
 
 #include "gpio.h"
-#include "hw_gpio.h"
 #include "hw_timer.h"
 #include "device.h"
 #include "timer.h"
-#include "uart.h"
-#include "log.h"
-#include "string.h"
-#include "stdio.h"
 
 static  timer__t timer_wifi_led; //todo для тестирования
-static  timer__t timer_message_test; //todo для тестирования
-static  timer__t timer_relay; //todo для тестирования
 
 void timer_wifi_led_on_cb(); //todo для тестирования
 void timer_wifi_led_off_cb(); //todo для тестирования
@@ -30,13 +23,6 @@ void timer_wifi_led_on_cb () { //todo для тестирования
     timer__start(&timer_wifi_led, 500, TIMER__MODE_ONE_PULSE, timer_wifi_led_off_cb);
 }
 
-void timer_message_test_cb () { //todo для тестирования
-    static uint32_t mes_number;
-    char message[40];
-    sprintf(message, "Hello world! #%d\n\r", mes_number++);
-    log__print(message);
-}
-
 void gpio__init(list__item_t* list_head){
     hw_gpio__init();
     device__gpio_init();
@@ -45,8 +31,6 @@ void gpio__init(list__item_t* list_head){
     //todo для тестирования
     gpio__pin_state_set(DEVICE_LED_WIFI, HW_GPIO__STATE_HIGH);
     timer__start(&timer_wifi_led, 5000, TIMER__MODE_ONE_PULSE, timer_wifi_led_on_cb);
-    timer__start(&timer_relay, 60000, TIMER__MODE_CONTINUE_PULSE, device__relay_switch);
-    timer__start(&timer_message_test, 1000, TIMER__MODE_CONTINUE_PULSE, timer_message_test_cb);
 }
 
 static void gpio__cout(void){

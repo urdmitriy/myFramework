@@ -2,17 +2,14 @@
 // Created by urdmi on 20.08.2024.
 //
 
-#include <stdio.h>
 #include "mcu.h"
 #include "uart.h"
 #include "hw_uart.h"
-#include "list.h"
 #include "inttypes.h"
-#include "device.h"
 #include "timer.h"
 
-#define SIZE_BUF 256
-#define TIME_IDLE_MS 2
+#define SIZE_BUF        256
+#define BAUDRATE        115200
 
 typedef enum {
     UART__FSM_STATE_IDLE,
@@ -65,7 +62,7 @@ static void uart__cout(void) {
 
             case UART__FSM_STATE_OPEN:
                 uart__data[i].uart_fsm_state = UART__FSM_STATE_WAIT_OPEN;
-                hw_uart__open(i, 115200, uart__event_handler);
+                hw_uart__open(i, BAUDRATE, uart__event_handler);
                 break;
 
             case UART__FSM_STATE_WAIT_OPEN:
@@ -100,8 +97,8 @@ static void uart__cout(void) {
                     if (uart__data[i].tx.data[uart__data[i].tx.current_tx] != '\0' &&
                         uart__data[i].tx.current_tx < SIZE_BUF) {
                         uart__data[i].flags.tx_wait_data_send = 1;
-                        hw_uart__tx(i, uart__data[i].tx.data[uart__data[i].tx.current_tx]);
-                        uart__data[i].tx.current_tx++;
+                        if (hw_uart__tx(i, uart__data[i].tx.data[uart__data[i].tx.current_tx]))
+                            uart__data[i].tx.current_tx++;
                     } else {
                         uart__data[i].tx.current_tx = 0;
                         uart__data[i].flags.tx_data = 0;
