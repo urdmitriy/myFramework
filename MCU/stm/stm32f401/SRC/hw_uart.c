@@ -13,21 +13,22 @@ void USART6_IRQHandler(void);
 void USART_IRQHandler(USART_TypeDef* usart);
 
 static USART_TypeDef* hw_usart__itf_get(uint32_t uart_id);
+static uint8_t hw_usart__id_get(USART_TypeDef* uart);
 
-hw_uart__event_handler_t hw_uart__event_handler;
+static hw_uart__event_handler_t hw_uart__event_handler;
 
 void hw_uart__init(uint8_t uart_id) {
     hw_gpio__settings_t gpio_settings;
     gpio_settings.mode = HW_GPIO__MODE_ALTERNATIVE;
 
     if (uart_id == DEVICE_USART_GSM) {
-        RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+        RCC->APB2ENR |= RCC_APB2ENR_USART6EN;
         hw_gpio__pin_init(DEVICE_USART_GSM_TX, &gpio_settings);
         hw_gpio__pin_init(DEVICE_USART_GSM_RX, &gpio_settings);
         GPIOA->AFR[1] |= (8 << GPIO_AFRH_AFSEL11_Pos);
         GPIOA->AFR[1] |= (8 << GPIO_AFRH_AFSEL12_Pos);
     } else if (uart_id == DEVICE_USART_WIFI) {
-        RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+        RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
         hw_gpio__pin_init(DEVICE_USART_WIFI_TX, &gpio_settings);
         hw_gpio__pin_init(DEVICE_USART_WIFI_RX, &gpio_settings);
         GPIOA->AFR[0] |= (7 << GPIO_AFRL_AFSEL2_Pos);
@@ -74,14 +75,14 @@ void hw_uart__rx_irq_en(uint8_t uart_id){
     usart->CR1 |= USART_CR1_RXNEIE;
 }
 
-uint8_t hw_uart__tx(uint8_t uart_id, char data){
+uint8_t hw_uart__tx(uint8_t uart_id, uint8_t data){
     USART_TypeDef* usart = hw_usart__itf_get(uart_id);
         usart->CR1 |= USART_CR1_TXEIE;
         usart->DR = data;
         return 1;
 }
 
-char hw_uart__rx(uint8_t uart_id){
+uint8_t hw_uart__rx(uint8_t uart_id){
     USART_TypeDef* usart = hw_usart__itf_get(uart_id);
     return usart->DR;
 }
@@ -99,18 +100,19 @@ void USART6_IRQHandler(void) {
 }
 
 void USART_IRQHandler(USART_TypeDef* usart) {
+
     if (usart->SR & USART_SR_TC) {
         usart->SR &= ~USART_SR_TC;
         usart->CR1 &= ~(USART_CR1_TCIE);
     }
 
     if (usart->SR & USART_SR_TXE) {
-        hw_uart__event_handler(0, HW_UART__EVENT_DATA_TX_COMPLETE);
+        hw_uart__event_handler(hw_usart__id_get(usart), HW_UART__EVENT_DATA_TX_COMPLETE);
         usart->CR1 &= ~(USART_CR1_TXEIE);
     }
 
     if (usart->SR & USART_SR_RXNE) {
-        hw_uart__event_handler(0, HW_UART__EVENT_DATA_RX);
+        hw_uart__event_handler(hw_usart__id_get(usart), HW_UART__EVENT_DATA_RX);
         usart->CR1 &= ~(USART_CR1_RXNEIE);
     }
 }
@@ -130,4 +132,16 @@ static USART_TypeDef* hw_usart__itf_get(uint32_t uart_id) {
             break;
     }
     return usart_itf;
+}
+
+static uint8_t hw_usart__id_get(USART_TypeDef* uart) {
+    uint8_t uart_id = 0xFF;
+    if (uart == USART1) {
+        uart_id = MCU__USART_1;
+    } else if (uart == USART2) {
+        uart_id = MCU__USART_2;
+    } else if (uart == USART6) {
+        uart_id = MCU__USART_6;
+    }
+    return uart_id;
 }

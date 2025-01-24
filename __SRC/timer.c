@@ -48,3 +48,7 @@ void timer__start(timer__t* timer, uint64_t time_ms, timer__mode_e mode, timer__
     timer->timer_cb = timer_cb;
     list__include(&list_timer, (void*)timer);
 }
+
+void timer__stop(timer__t* timer) {
+    list__exclude(&list_timer, (void*)timer);
+}

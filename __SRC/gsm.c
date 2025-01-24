@@ -11,10 +11,15 @@
     #include "sim800.h"
 #endif
 
+#define DELAY_MCU_ON                10
+#define DELAY_GSM_ON                500
+
 static uint8_t gsm_uart_id = 0xFF;
 timer__t timer_power_on;
 
 typedef enum {
+    GSM__STATE_MCU_ON,
+    GSM__STATE_WAIT_MCU,
     GSM__STATE_POWER_OFF,
     GSM__STATE_POWER_ON,
     GSM__STATE_WAIT_POWER_ON,
@@ -29,7 +34,7 @@ static void gsm__cout();
 static void gsm__set_state(gsm_state_e state);
 static void gsm__power_on_cb(void);
 static void gsm__restart_cb(void);
-static void gsm__hw_cmd_handler(sim800_state_e state);
+static void gsm__hw_cmd_handler(sim800__state_e state);
 
 
 void gsm__init(uint8_t uart_id, list__item_t *list_head) {
@@ -40,14 +45,20 @@ void gsm__init(uint8_t uart_id, list__item_t *list_head) {
 
 static void gsm__cout(){
     switch (gsm_state) {
+        case GSM__STATE_MCU_ON:
+            gsm__set_state(GSM__STATE_WAIT_MCU);
+            timer__start(&timer_power_on, DELAY_MCU_ON, TIMER__MODE_ONE_PULSE, gsm__power_on_cb);
+            break;
+        case GSM__STATE_WAIT_MCU:
+            break;
         case GSM__STATE_POWER_OFF:
             gsm__set_state(GSM__STATE_POWER_ON);
             break;
         case GSM__STATE_POWER_ON:
-            device__switch_power_gsm(1);
             gsm__set_state(GSM__STATE_WAIT_POWER_ON);
-            sim800_init(gsm__hw_cmd_handler);
-            timer__start(&timer_power_on, 3000, TIMER__MODE_ONE_PULSE, gsm__power_on_cb);
+            device__switch_power_gsm(1);
+            sim800_init(gsm_uart_id, gsm__hw_cmd_handler);
+            timer__start(&timer_power_on, DELAY_GSM_ON, TIMER__MODE_ONE_PULSE, gsm__power_on_cb);
             break;
         case GSM__STATE_WAIT_POWER_ON:
             break;
@@ -65,7 +76,16 @@ static void gsm__cout(){
 }
 
 static void gsm__power_on_cb(void) {
-    gsm__set_state(GSM__STATE_WORK);
+    switch (gsm_state) {
+        case GSM__STATE_WAIT_MCU:
+            gsm__set_state(GSM__STATE_POWER_OFF);
+            break;
+        case GSM__STATE_WAIT_POWER_ON:
+            gsm__set_state(GSM__STATE_WORK);
+            break;
+        default:
+            break;
+    }
 }
 
 static void gsm__restart_cb(void) {
@@ -74,31 +94,41 @@ static void gsm__restart_cb(void) {
 
 static void gsm__set_state(gsm_state_e state){
     gsm_state = state;
+    char message[128] = {"GSM set state "};
     switch (state) {
+        case GSM__STATE_MCU_ON:
+            strcat(message, "MCU ON\n\r");
+            break;
+        case GSM__STATE_WAIT_MCU:
+            strcat(message, "WAIT MCU\n\r");
+            break;
         case GSM__STATE_POWER_OFF:
-            log__print("GSM set state POWER OFF\n\r");
+            strcat(message, "POWER OFF\n\r");
             break;
         case GSM__STATE_POWER_ON:
-            log__print("GSM set state POWER ON\n\r");
+            strcat(message, "POWER ON\n\r");
             break;
         case GSM__STATE_WAIT_POWER_ON:
-            log__print("GSM set state WAIT POWER ON\n\r");
+            strcat(message, "WAIT POWER ON\n\r");
             break;
         case GSM__STATE_WORK:
-            log__print("GSM set state WORK\n\r");
+            strcat(message, "WORK\n\r");
             break;
         case GSM__STATE_RESTART:
-            log__print("GSM set state RESTART\n\r");
+            strcat(message, "RESTART\n\r");
             break;
         case GSM__STATE_WAIT_POWER_OFF:
             log__print("GSM set state WAIT POWER OFF\n\r");
             break;
+        default:
+            strcat(message, "UNKNOWN\n\r");
     }
+    log__print(message);
 }
 
-void gsm__hw_cmd_handler(sim800_state_e state) {
+void gsm__hw_cmd_handler(sim800__state_e state) {
     switch (state) {
-        case SIM800_STATE_RESTART:
+        case SIM800__STATE_RESTART:
             gsm__set_state(GSM__STATE_RESTART);
             break;
         default:

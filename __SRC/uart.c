@@ -7,6 +7,8 @@
 #include "hw_uart.h"
 #include "inttypes.h"
 #include "timer.h"
+#include "stm32f4xx.h"
+#include "string.h"
 
 #define SIZE_BUF        256
 #define BAUDRATE        115200
@@ -20,13 +22,13 @@ typedef enum {
 
 typedef struct {
     struct {
-        char data[SIZE_BUF];
+        uint8_t data[SIZE_BUF];
         uint16_t data_count;
         uint16_t current_tx;
         uart__call_back_t cb;
     }tx;
     struct {
-        char data[SIZE_BUF];
+        uint8_t data[SIZE_BUF];
         uint16_t data_count;
         uint32_t len;
         uint32_t timeout;
@@ -74,21 +76,29 @@ static void uart__cout(void) {
 
                     uint64_t cur_time = timer__systick_get();
 
-                    if (uart__data[i].flags.rx_data){
-                        uart__data[i].rx.data[uart__data[i].rx.data_count] = hw_uart__rx(i);
-                        uart__data[i].rx.data_count ++;
+                    if (uart__data[i].flags.rx_data) {
+                        uint8_t rx_byte = hw_uart__rx(i);
+                        uart__data[i].rx.data[uart__data[i].rx.data_count] = rx_byte;
+                        uart__data[i].rx.data_count++;
                         uart__data[i].flags.rx_data = 0;
                         uart__data[i].rx.time_last_byte = cur_time;
                     }
 
+                    uint8_t ent_rcv = 0;
                     if ((uart__data[i].rx.time_idle != 0 && (cur_time - uart__data[i].rx.time_last_byte) >= uart__data[i].rx.time_idle) && uart__data[i].rx.data_count > 0) { //если задержка
-                        uart__data[i].rx.cb(i, UART__EVENT_DATA_RX_COMPLETE, uart__data[i].rx.data, uart__data[i].rx.data_count);
+                        ent_rcv = 1;
                     } else if (uart__data[i].rx.len != 0 && uart__data[i].rx.data_count >= uart__data[i].rx.len) { //если n байт уже получено
-                        uart__data[i].rx.cb(i, UART__EVENT_DATA_RX_COMPLETE, uart__data[i].rx.data, uart__data[i].rx.data_count);
+                        ent_rcv = 1;
                     } else if (uart__data[i].rx.timeout != 0 && uart__data[i].rx.timeout >= timer__systick_get()) { //если время истекло
-                        uart__data[i].rx.cb(i, UART__EVENT_DATA_RX_COMPLETE, uart__data[i].rx.data, uart__data[i].rx.data_count);
+                        ent_rcv = 1;
                     } else {
                         hw_uart__rx_irq_en(i);
+                    }
+                    if (ent_rcv) {
+                        uart__data[i].rx.data[uart__data[i].rx.data_count] = 0;
+                        uart__data[i].rx.cb(i, UART__EVENT_DATA_RX_COMPLETE, uart__data[i].rx.data, uart__data[i].rx.data_count);
+                        memset(uart__data[i].rx.data, 0, uart__data[i].rx.data_count);
+                        uart__data[i].rx.data_count = 0;
                     }
                 }
 
@@ -136,7 +146,7 @@ void uart__open(uint8_t uart_id) {
     }
 }
 
-void uart__tx(uint8_t uart_id, char* data, uart__call_back_t uart_cb){
+void uart__tx(uint8_t uart_id, uint8_t* data, uart__call_back_t uart_cb){
     if (uart__data[uart_id].uart_fsm_state != UART__FSM_STATE_WORK) return;
     uart__data[uart_id].flags.tx_data = 1;
     uart__data[uart_id].tx.cb = uart_cb;
@@ -151,7 +161,7 @@ void uart__tx(uint8_t uart_id, char* data, uart__call_back_t uart_cb){
     hw_uart__tx_irq_en(uart_id);
 }
 
-void uart__rx(uint8_t uart_id, char* data, uint32_t timeout_ms, uint32_t time_idle_ms, uint32_t len, uart__call_back_t uart_cb){
+void uart__rx(uint8_t uart_id, uint8_t* data, uint32_t timeout_ms, uint32_t time_idle_ms, uint32_t len, uart__call_back_t uart_cb){
     if (uart__data[uart_id].uart_fsm_state != UART__FSM_STATE_WORK) return;
 
     if (timeout_ms != 0)
@@ -170,7 +180,6 @@ void uart__rx(uint8_t uart_id, char* data, uint32_t timeout_ms, uint32_t time_id
         uart__data[uart_id].rx.time_idle = 0;
 
     uart__data[uart_id].rx.cb = uart_cb;
-    uart__data[uart_id].rx.data_count = 0;
     hw_uart__rx_irq_en(uart_id);
 }
 

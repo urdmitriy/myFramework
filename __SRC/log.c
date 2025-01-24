@@ -39,7 +39,7 @@ void log__print(char* message){
 static void log__cout(){
     if (log_uart_id != 0xFF && !uart__is_busy(log_uart_id)) {
         if (list_messages.next_list->item_ptr != 0){
-            uart__tx(log_uart_id, list_messages.next_list->item_ptr, 0);
+            uart__tx(log_uart_id, (uint8_t*)list_messages.next_list->item_ptr, 0);
             free(list_messages.next_list->item_ptr);
             list__exclude(&list_messages, list_messages.next_list);
             count_messages_wait--;

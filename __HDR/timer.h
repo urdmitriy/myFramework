@@ -26,6 +26,7 @@ typedef struct {
 
 
 void timer__start(timer__t* timer, uint64_t time_ms, timer__mode_e mode, timer__cb_t timer_cb);
+void timer__stop(timer__t* timer);
 void timer__init(list__item_t* list_head);
 uint64_t timer__systick_get(void);
 
