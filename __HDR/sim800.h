@@ -24,7 +24,9 @@ typedef enum {
 } sim800__state_e;
 
 typedef void (*cb_gsm_t)(sim800__state_e);
-void sim800_init(uint8_t uart_id, cb_gsm_t cb) ;
+typedef void (*call_handler_t)(uint64_t);
+void sim800_init(uint8_t uart_id, cb_gsm_t cb, call_handler_t call_handler) ;
 void sim800_cout();
+void sim800__end_call();
 
 #endif //SIM800_H

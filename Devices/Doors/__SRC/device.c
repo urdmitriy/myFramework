@@ -39,7 +39,7 @@ static void timer_relay_on_cb () {
 
 void device__relay_switch(){
     gpio__pin_state_set(DEVICE_PIN_RELAY, HW_GPIO__STATE_HIGH);
-    log__print("Relay switch!\n\r");
+    log__print("Open door!\n\r");
     timer__start(&timer_relay_delay, TIME_RELAY_ON_DELAY, TIMER__MODE_ONE_PULSE, timer_relay_on_cb);
 }
 
