@@ -5,18 +5,21 @@
 #include "sim800.h"
 #include "timer.h"
 #include "log.h"
-#include "uart.h"
 #include "stdio.h"
+#include "stdlib.h"
 #include "malloc.h"
 #include "string.h"
 
+#define FULL_LOG
 #define TIMEOUT_COMMAND_MS 5000
+
 typedef enum {
     SIM800__CMD_NA,
     SIM800__CMD_HELLO, //AT
     SIM800__CMD_HOW_ARE_YOU, //ATI
     SIM800__CMD_AON_ON, //AT+CLIP=1
     SIM800__CMD_SMS_TEXT_MODE, //AT+CMGF=1
+    SIM800__CMD_END_CALL,
 }sim800__cmd_e;
 
 typedef struct {
@@ -24,11 +27,11 @@ typedef struct {
     char* command;
 }sim800__command_t;
 
-static cb_gsm_t cb_gsm= 0;
+static cb_gsm_t cb_gsm = 0;
+static call_handler_t call_handler_cb;
 static uint8_t sim800__wait = 0;
 static timer__t timer_sim800_cout;
 static timer__t timer_sim800_command;
-static timer__t timer_sim800_test;
 static sim800__state_e sim800_state;
 static uint8_t gsm_uart_id = 0xFF;
 static void uart__cmd_cb(uint8_t uart_id, uart__event_e event, uint8_t* buf, uint16_t len);
@@ -46,9 +49,10 @@ static void sim800__command_cout(void);
 static void sim800__command_cb_handler(void);
 static void sim800__calls_handler(char* message);
 
-void sim800_init(uint8_t uart_id, cb_gsm_t cb) {
+void sim800_init(uint8_t uart_id, cb_gsm_t cb, call_handler_t call_handler) {
     gsm_uart_id = uart_id;
     cb_gsm = cb;
+    call_handler_cb = call_handler;
     list__init(&list_commands);
 }
 
@@ -169,6 +173,9 @@ static void sim800__send_cmd(sim800__cmd_e command_id, char* parametr ) {
         case SIM800__CMD_SMS_TEXT_MODE:
             strcpy(command, "AT+CMGF=1");
             break;
+        case SIM800__CMD_END_CALL:
+            strcpy(command, "ATH");
+            break;
         default:
             return;
     }
@@ -211,14 +218,20 @@ static void uart__rx_cb(uint8_t uart_id, uart__event_e event, uint8_t *buf, uint
         sim800__command_cb_handler();
     }
 
+#ifdef FULL_LOG
     log__print(message);
     log__print("\n\r");
+#endif
     uart__rx(gsm_uart_id, buf, 0, 10, 0, uart__rx_cb);
 }
 
 static void sim800__calls_handler(char* message){
+    uint64_t num = 0xFFFFFFFF;
+    char* num_ptr = strstr(message, "+CLIP:") + 9;
+    num = strtoull(num_ptr, NULL, 10);
 
-    log__print("---=== this is call handler ===---");
+    if (num != 0xFFFFFFFF)
+        call_handler_cb(num);
 }
 
 static void sim800__command_cb_handler(void) {
@@ -265,3 +278,6 @@ static void sim800__command_cout(){
     }
 }
 
+void sim800__end_call(){
+    sim800__send_cmd(SIM800__CMD_END_CALL, 0);
+}
